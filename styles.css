@@ -364,10 +364,12 @@ img { display: block; max-width: 100%; }
   .shop-body { grid-template-columns: 1fr; }
   .filter-toggle { display: inline-block; }
   .filters {
-    position: fixed; inset: 0 0 0 auto; width: 320px; max-width: 88vw;
+    position: fixed; top: 0; right: 0; left: auto; width: 320px; max-width: 88vw;
+    height: 100vh; height: 100dvh;   /* dvh = visible viewport, accounts for mobile browser bars */
     background: #fff; z-index: 55; padding: 20px; overflow-y: auto;
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
     transform: translateX(100%); transition: transform .26s cubic-bezier(.4,0,.2,1);
-    box-shadow: var(--shadow-lg); top: 0; border-left: 1px solid var(--line);
+    box-shadow: var(--shadow-lg); border-left: 1px solid var(--line);
   }
   .filters.open { transform: translateX(0); }
   .filters-close { display: inline-flex; align-items: center; justify-content: center; }
@@ -399,7 +401,8 @@ img { display: block; max-width: 100%; }
   .add-btn { width: 100%; }
 
   /* Compact filter drawer so the whole panel fits — no internal scrolling */
-  .filters { padding: 16px 18px; }
+  .filters { padding: 16px 18px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .filters-apply { margin-bottom: 2px; }
   .filters .filter-group { padding: 10px 0; }
   .filters .filter-group legend { margin-bottom: 8px; }
   .filters .filters-head { margin-bottom: 2px; }

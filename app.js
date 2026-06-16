@@ -482,9 +482,8 @@
     $("#modalClose").addEventListener("click", closeProductModal);
     $("#modalAdd").addEventListener("click", function () {
       if (!modalProduct) return;
-      addToCart(modalProduct.id);
-      var b = $("#modalAdd"); b.textContent = "Added ✓"; b.classList.add("added");
-      setTimeout(function () { b.textContent = "Add to cart"; b.classList.remove("added"); }, 1100);
+      addToCart(modalProduct.id);   // fires the "Added to cart" toast
+      closeProductModal();          // task done — close the modal
     });
     $("#overlay").addEventListener("click", function () { if (overlayHandler) overlayHandler(); });
 
