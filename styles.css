@@ -173,7 +173,7 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Product grid ---------- */
 .grid {
-  display: grid; gap: 18px;
+  display: grid; gap: 18px; min-width: 0;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
 }
 .card {
@@ -208,14 +208,15 @@ img { display: block; max-width: 100%; }
 }
 .shelf-back:hover { border-color: var(--ink); }
 
-.shelves { display: flex; flex-direction: column; gap: 26px; }
+.shelves { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+.shelf { min-width: 0; }
 .shelf-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
 .shelf-head h3 { font-size: 1.05rem; font-weight: 800; }
 .shelf-count { color: var(--muted); font-weight: 600; font-size: .8rem; margin-left: 6px; }
 .shelf-all { background: none; border: 0; color: var(--accent); font: inherit; font-weight: 700; font-size: .85rem; cursor: pointer; white-space: nowrap; }
 .shelf-all:hover { text-decoration: underline; }
 .shelf-row {
-  display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px;
+  display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px; min-width: 0;
   scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
 }
 .shelf-row::-webkit-scrollbar { height: 6px; }
