@@ -34,7 +34,10 @@
   <main class="wrap shop" id="shop">
     <!-- Toolbar -->
     <div class="toolbar">
-      <span class="result-count" id="resultCount" aria-live="polite"></span>
+      <div class="toolbar-left">
+        <button class="shelf-back" id="shelfBack" type="button" hidden>← All categories</button>
+        <span class="result-count" id="resultCount" aria-live="polite"></span>
+      </div>
       <button class="btn btn-ghost filter-toggle" id="filterToggle" aria-expanded="false">Filters</button>
     </div>
 
@@ -78,9 +81,13 @@
                  aria-label="Maximum price" />
           <div class="price-label" id="priceLabel">Any price</div>
         </fieldset>
+
+        <button class="btn btn-primary filters-apply" id="filtersApply" type="button">Show results</button>
       </aside>
 
-      <!-- Grid -->
+      <!-- Mobile: browse-by-category shelves -->
+      <section class="shelves" id="shelves" aria-label="Browse by category" hidden></section>
+      <!-- Product grid (desktop, and mobile when a category/search is active) -->
       <section class="grid" id="grid" aria-label="Products"></section>
     </div>
 
@@ -99,7 +106,10 @@
   <aside class="cart-drawer" id="cartDrawer" aria-label="Shopping cart" aria-hidden="true">
     <div class="cart-head">
       <h2>Your cart <span class="muted" id="cartItemsLabel"></span></h2>
-      <button class="icon-btn" id="cartClose" aria-label="Close cart">✕</button>
+      <div class="cart-head-actions">
+        <button class="link-btn" id="clearCart" type="button" hidden>Clear cart</button>
+        <button class="icon-btn" id="cartClose" aria-label="Close cart">✕</button>
+      </div>
     </div>
 
     <div class="cart-items" id="cartItems"></div>

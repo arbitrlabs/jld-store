@@ -62,6 +62,10 @@
   var cart = loadCart();         // { id: qty }
   var coupon = loadCoupon();     // code string or null
 
+  var mqMobile = window.matchMedia("(max-width: 620px)");
+  var isMobile = mqMobile.matches;
+  var SHELF_LIMIT = 12;          // items shown per category row before "See all"
+
   /* ---------- Tiny DOM helpers ---------- */
   function $(sel) { return document.querySelector(sel); }
   function el(tag, attrs, html) {
@@ -169,13 +173,64 @@
      ============================================================ */
   function render() {
     var list = applyFilters();
-    var grid = $("#grid");
-    grid.innerHTML = "";
-    list.forEach(function (p) { grid.appendChild(card(p)); });
+    // Mobile "browse" mode: no category chosen and no search -> show category shelves.
+    var shelvesMode = isMobile && state.categories.size === 0 && !state.search.trim();
 
-    $("#resultCount").textContent = list.length + (list.length === 1 ? " item" : " items");
-    $("#emptyState").hidden = list.length !== 0;
-    $("#grid").hidden = list.length === 0;
+    var label = list.length + (list.length === 1 ? " item" : " items");
+    $("#resultCount").textContent = label;
+    $("#filtersApply").textContent = "Show " + label;
+    $("#shelfBack").hidden = !(isMobile && state.categories.size > 0);
+
+    if (list.length === 0) {
+      $("#grid").hidden = true; $("#shelves").hidden = true; $("#emptyState").hidden = false;
+      return;
+    }
+    $("#emptyState").hidden = true;
+
+    if (shelvesMode) {
+      renderShelves(list);
+      $("#shelves").hidden = false; $("#grid").hidden = true;
+    } else {
+      var grid = $("#grid"); grid.innerHTML = "";
+      list.forEach(function (p) { grid.appendChild(card(p)); });
+      $("#grid").hidden = false; $("#shelves").hidden = true;
+    }
+  }
+
+  // One horizontal row per category; "See all" expands that category into the grid.
+  function renderShelves(list) {
+    var wrap = $("#shelves"); wrap.innerHTML = "";
+    CATEGORY_ORDER.forEach(function (code) {
+      var items = list.filter(function (p) { return p.category === code; });
+      if (!items.length) return;
+      var sec = el("section", { "class": "shelf" });
+      var head = el("div", { "class": "shelf-head" });
+      head.innerHTML = '<h3>' + esc(CATEGORY_LABELS[code] || code) +
+        '<span class="shelf-count">' + items.length + '</span></h3>';
+      var all = el("button", { "class": "shelf-all", type: "button" }, "See all →");
+      all.addEventListener("click", function () { selectCategory(code); });
+      head.appendChild(all);
+      var row = el("div", { "class": "shelf-row" });
+      items.slice(0, SHELF_LIMIT).forEach(function (p) { row.appendChild(card(p)); });
+      if (items.length > SHELF_LIMIT) {
+        var more = el("button", { "class": "shelf-more", type: "button" }, "+" + (items.length - SHELF_LIMIT) + "\nmore");
+        more.addEventListener("click", function () { selectCategory(code); });
+        row.appendChild(more);
+      }
+      sec.appendChild(head); sec.appendChild(row);
+      wrap.appendChild(sec);
+    });
+  }
+
+  // Select a single category (or pass null to clear back to shelves). Keeps chips in sync.
+  function selectCategory(code) {
+    state.categories = code ? new Set([code]) : new Set();
+    document.querySelectorAll("#categoryChips .chip").forEach(function (c) {
+      c.setAttribute("aria-pressed", c.getAttribute("data-cat") === code ? "true" : "false");
+    });
+    updateGloveTypeVisibility();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   function card(p) {
@@ -221,6 +276,13 @@
   function setQty(id, qty) {
     if (qty <= 0) delete cart[id]; else cart[id] = qty;
     saveCart(); renderCart();
+  }
+  function clearCart() {
+    cart = {}; coupon = null;
+    saveCart(); saveCoupon();
+    $("#couponInput").value = ""; setCouponMsg("");
+    renderCart(); bumpCount();
+    toast("Cart cleared");
   }
   function cartEntries() {
     return Object.keys(cart).map(function (id) {
@@ -270,6 +332,7 @@
     var has = t.entries.length > 0;
     $("#cartEmpty").hidden = has;
     $("#cartFoot").hidden = !has;
+    $("#clearCart").hidden = !has;
     $("#cartItemsLabel").textContent = has ? "(" + cartCount() + ")" : "";
 
     t.entries.forEach(function (e) {
@@ -414,6 +477,7 @@
   function wire() {
     $("#cartBtn").addEventListener("click", openCart);
     $("#cartClose").addEventListener("click", closeCart);
+    $("#clearCart").addEventListener("click", clearCart);
 
     $("#modalClose").addEventListener("click", closeProductModal);
     $("#modalAdd").addEventListener("click", function () {
@@ -426,7 +490,14 @@
 
     $("#filterToggle").addEventListener("click", openFilters);
     $("#filtersClose").addEventListener("click", closeFilters);
+    $("#filtersApply").addEventListener("click", closeFilters);
     $("#clearFilters").addEventListener("click", clearAllFilters);
+    $("#shelfBack").addEventListener("click", function () { selectCategory(null); });
+
+    // Re-render when crossing the mobile breakpoint (shelves <-> grid).
+    var onMq = function (e) { isMobile = e.matches; render(); };
+    if (mqMobile.addEventListener) mqMobile.addEventListener("change", onMq);
+    else mqMobile.addListener(onMq);
     $("#emptyClear").addEventListener("click", clearAllFilters);
 
     $("#priceRange").addEventListener("input", function () { updatePriceLabel(); render(); });
@@ -448,11 +519,17 @@
     });
 
     var backBtn = $("#backToTop");
-    window.addEventListener("scroll", function () {
-      if (window.pageYOffset > 450) backBtn.classList.add("show");
+    function updateBackToTop() {
+      var y = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      if (y > 300) backBtn.classList.add("show");
       else backBtn.classList.remove("show");
-    }, { passive: true });
-    backBtn.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+    }
+    window.addEventListener("scroll", updateBackToTop, { passive: true });
+    document.addEventListener("scroll", updateBackToTop, { passive: true, capture: true });
+    backBtn.addEventListener("click", function () {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
+    });
 
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape") {
