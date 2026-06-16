@@ -42,6 +42,11 @@ a { color: inherit; text-decoration: none; }
 
 img { display: block; max-width: 100%; }
 
+/* Ensure the hidden attribute always wins over component display rules
+   (e.g. .grid{display:grid}, .shelves{display:flex}) — otherwise hidden
+   sections still render and overlap. */
+[hidden] { display: none !important; }
+
 .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 20px; }
 
 .muted { color: var(--muted); }
