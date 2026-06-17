@@ -229,6 +229,35 @@ img { display: block; max-width: 100%; }
 }
 .shelf-more:hover { border-color: var(--accent); }
 
+/* ---------- Colorways (swatches + arrows) ---------- */
+.cw-swatches { position: absolute; bottom: 8px; left: 0; right: 0; display: flex; justify-content: center; flex-wrap: wrap; gap: 6px; padding: 0 8px; z-index: 1; }
+.cw-swatch {
+  width: 17px; height: 17px; border-radius: 5px; padding: 0; cursor: pointer;
+  border: 1px solid rgba(20,22,26,.25); background-clip: padding-box;
+  transition: transform .1s ease, box-shadow .12s ease;
+}
+.cw-swatch:hover { transform: scale(1.12); }
+.cw-swatch.active { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent); }  /* glow on selection */
+.cw-arrow {
+  position: absolute; top: 42%; transform: translateY(-50%); z-index: 2;
+  width: 28px; height: 28px; border-radius: 50%; border: 0; cursor: pointer;
+  background: rgba(255,255,255,.92); color: var(--ink); font-size: 1.1rem; line-height: 1;
+  box-shadow: var(--shadow); display: flex; align-items: center; justify-content: center;
+}
+.cw-arrow:hover { background: #fff; }
+.cw-prev { left: 6px; }
+.cw-next { right: 6px; }
+.card-color { font-size: .78rem; color: var(--ink-soft); font-weight: 600; }
+
+.modal-swatches { position: static; justify-content: flex-start; padding: 0; margin: 0 0 14px; }
+.modal-swatches .cw-swatch { width: 22px; height: 22px; border-radius: 6px; }
+
+.cl-color { color: var(--ink-soft); font-weight: 500; }
+.cl-edit { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; }
+.cl-edit:hover { text-decoration: underline; }
+.cl-colors { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+.cl-colors .cw-swatch { width: 18px; height: 18px; }
+
 /* ---------- Footer ---------- */
 .site-footer { border-top: 1px solid var(--line); padding: 32px 0; margin-top: 40px; color: var(--ink-soft); }
 .site-footer p { margin: 4px 0; font-size: .9rem; }

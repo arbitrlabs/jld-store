@@ -99,6 +99,91 @@
   }
 
   /* ============================================================
+     COLORWAY GROUPING
+     Products that share a base name ("X - Colorway") are grouped so one
+     card represents the model and its colorways. Cart keeps each colorway
+     as its own line (each colorway is a distinct product id).
+     ============================================================ */
+  function parseColorway(name) {
+    var i = name.lastIndexOf(" - ");
+    if (i > 0) return { base: name.slice(0, i).trim(), color: name.slice(i + 3).trim() };
+    return { base: name.trim(), color: null };
+  }
+  var GROUPS = {};                  // gkey -> [products] in natural order
+  PRODUCTS.forEach(function (p) {
+    var pc = parseColorway(p.name);
+    p._base = pc.base; p._color = pc.color;
+    p._gkey = p.brand + "|" + p.category + "|" + pc.base;
+    (GROUPS[p._gkey] = GROUPS[p._gkey] || []).push(p);
+  });
+  Object.keys(GROUPS).forEach(function (k) {
+    GROUPS[k].forEach(function (p) { p._multi = GROUPS[k].length > 1; });
+  });
+  var activeColor = {};             // gkey -> selected product id (persists across renders)
+
+  // Build display units from a (filtered, sorted) flat list: one unit per group,
+  // positioned by first appearance; colorways kept in natural group order.
+  function groupForDisplay(list) {
+    var present = {}; list.forEach(function (p) { present[p.id] = true; });
+    var seen = {}, units = [];
+    list.forEach(function (p) {
+      if (seen[p._gkey]) return;
+      seen[p._gkey] = true;
+      var cw = GROUPS[p._gkey].filter(function (q) { return present[q.id]; });
+      var sel = activeColor[p._gkey];
+      var active = (sel && cw.filter(function (q) { return q.id === sel; })[0]) || cw[0];
+      units.push({ gkey: p._gkey, colorways: cw, active: active });
+    });
+    return units;
+  }
+
+  /* ----- Swatch colors (approximate, derived from the colorway text) ----- */
+  function shade(hex, amt) {
+    var n = parseInt(hex.slice(1), 16), r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    function ad(c) { return Math.max(0, Math.min(255, Math.round(c + amt * 255))); }
+    return "#" + [ad(r), ad(g), ad(b)].map(function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+  }
+  var COLOR_BASE = {
+    black: "#1c1c1c", white: "#f2f2f2", red: "#cc2233", blue: "#2a5bd0", green: "#2e8b57",
+    grey: "#8a8f98", gray: "#8a8f98", gold: "#c8962a", silver: "#c2c6cd", navy: "#1e2f55",
+    brown: "#6b4423", purple: "#7a3fb0", pink: "#e879a6", orange: "#e6791f", yellow: "#e6c229",
+    khaki: "#7c7a52", camel: "#c19a6b", sand: "#d8c39a", ivory: "#efe6cd", burgundy: "#6d1f2c",
+    turquoise: "#1ab5a8", aqua: "#3fc1c9", coral: "#ff6f61", corail: "#ff6f61", raspberry: "#b3325a",
+    pumpkin: "#d2691e", bronze: "#8c6a3f", chocolate: "#3d2517", ruby: "#9b111e", garnet: "#7a1f2b",
+    cobalt: "#1d50c4", emerald: "#1f9e5a", cherry: "#a01030", military: "#5a6650", army: "#4b5320",
+    transparent: "#dfe3ea"
+  };
+  function colorToHex(word) {
+    word = word.toLowerCase().trim();
+    var keys = Object.keys(COLOR_BASE);
+    for (var i = 0; i < keys.length; i++) {
+      if (word.indexOf(keys[i]) >= 0) {
+        var hex = COLOR_BASE[keys[i]];
+        if (/dark|deep|storm|state|grizzly|intense|midnight|night/.test(word)) hex = shade(hex, -0.18);
+        else if (/snow|light/.test(word)) hex = shade(hex, 0.18);
+        return hex;
+      }
+    }
+    return "#9aa0a8";
+  }
+  function swatchBg(color) {
+    if (!color) return "#cfd3da";
+    var parts = color.split("/").map(function (s) { return s.trim(); }).filter(Boolean).slice(0, 2);
+    var hexes = parts.map(colorToHex);
+    if (hexes.length === 2 && hexes[0] !== hexes[1])
+      return "linear-gradient(135deg, " + hexes[0] + " 0 50%, " + hexes[1] + " 50% 100%)";
+    return hexes[0] || "#cfd3da";
+  }
+  function swatchesHTML(cw, activeId) {
+    return cw.map(function (p) {
+      var label = p._color || "Original";
+      return '<button class="cw-swatch' + (p.id === activeId ? " active" : "") + '" type="button"' +
+        ' data-id="' + p.id + '" title="' + esc(label) + '" aria-label="' + esc(label) + '"' +
+        ' style="background:' + swatchBg(p._color) + '"></button>';
+    }).join("");
+  }
+
+  /* ============================================================
      FILTERS
      ============================================================ */
   function buildChips() {
@@ -192,7 +277,7 @@
       $("#shelves").hidden = false; $("#grid").hidden = true;
     } else {
       var grid = $("#grid"); grid.innerHTML = "";
-      list.forEach(function (p) { grid.appendChild(card(p)); });
+      groupForDisplay(list).forEach(function (u) { grid.appendChild(card(u)); });
       $("#grid").hidden = false; $("#shelves").hidden = true;
     }
   }
@@ -203,17 +288,18 @@
     CATEGORY_ORDER.forEach(function (code) {
       var items = list.filter(function (p) { return p.category === code; });
       if (!items.length) return;
+      var units = groupForDisplay(items);
       var sec = el("section", { "class": "shelf" });
       var head = el("div", { "class": "shelf-head" });
       head.innerHTML = '<h3>' + esc(CATEGORY_LABELS[code] || code) +
-        '<span class="shelf-count">' + items.length + '</span></h3>';
+        '<span class="shelf-count">' + units.length + '</span></h3>';
       var all = el("button", { "class": "shelf-all", type: "button" }, "See all →");
       all.addEventListener("click", function () { selectCategory(code); });
       head.appendChild(all);
       var row = el("div", { "class": "shelf-row" });
-      items.slice(0, SHELF_LIMIT).forEach(function (p) { row.appendChild(card(p)); });
-      if (items.length > SHELF_LIMIT) {
-        var more = el("button", { "class": "shelf-more", type: "button" }, "+" + (items.length - SHELF_LIMIT) + "\nmore");
+      units.slice(0, SHELF_LIMIT).forEach(function (u) { row.appendChild(card(u)); });
+      if (units.length > SHELF_LIMIT) {
+        var more = el("button", { "class": "shelf-more", type: "button" }, "+" + (units.length - SHELF_LIMIT) + "\nmore");
         more.addEventListener("click", function () { selectCategory(code); });
         row.appendChild(more);
       }
@@ -233,29 +319,57 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
-  function card(p) {
+  // Accepts a display unit { gkey, colorways, active }.
+  function card(unit) {
+    var cw = unit.colorways, active = unit.active, idx = cw.indexOf(active);
+    var multi = cw.length > 1;
     var node = el("article", { "class": "card" });
-    node.innerHTML =
-      '<div class="card-media">' +
-        '<img src="images/' + p.img + '" alt="' + esc(p.brand + " " + p.name) + '" loading="lazy" decoding="async" width="800" height="800">' +
-      '</div>' +
+
+    var media = '<div class="card-media">';
+    if (multi) {
+      if (idx > 0) media += '<button class="cw-arrow cw-prev" type="button" aria-label="Previous colour">‹</button>';
+      if (idx < cw.length - 1) media += '<button class="cw-arrow cw-next" type="button" aria-label="Next colour">›</button>';
+    }
+    media += '<img src="images/' + active.img + '" alt="' + esc(active.brand + " " + active.name) + '" loading="lazy" decoding="async" width="800" height="800">';
+    if (multi) media += '<div class="cw-swatches">' + swatchesHTML(cw, active.id) + '</div>';
+    media += '</div>';
+
+    node.innerHTML = media +
       '<div class="card-body">' +
-        '<span class="card-brand">' + esc(p.brand) + '</span>' +
-        '<h3 class="card-name">' + esc(p.name) + '</h3>' +
-        '<p class="card-blurb">' + esc(p.blurb || "") + '</p>' +
+        '<span class="card-brand">' + esc(active.brand) + '</span>' +
+        '<h3 class="card-name">' + esc(multi ? active._base : active.name) + '</h3>' +
+        (multi ? '<span class="card-color">' + esc(active._color || "Original") + '</span>' : '') +
+        '<p class="card-blurb">' + esc(active.blurb || "") + '</p>' +
         '<div class="card-foot">' +
-          '<span class="price">' + money(p.price) + '</span>' +
+          '<span class="price">' + money(active.price) + '</span>' +
           '<button class="add-btn" type="button">Add</button>' +
         '</div>' +
       '</div>';
+
+    function setActive(p) {
+      unit.active = p; activeColor[unit.gkey] = p.id;
+      node.replaceWith(card(unit));   // re-render this card in place
+    }
+    if (multi) {
+      var prev = node.querySelector(".cw-prev"), next = node.querySelector(".cw-next");
+      if (prev) prev.addEventListener("click", function (e) { e.stopPropagation(); setActive(cw[idx - 1]); });
+      if (next) next.addEventListener("click", function (e) { e.stopPropagation(); setActive(cw[idx + 1]); });
+      node.querySelectorAll(".cw-swatch").forEach(function (sw) {
+        sw.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var p = cw.filter(function (q) { return q.id === sw.getAttribute("data-id"); })[0];
+          if (p && p !== unit.active) setActive(p);
+        });
+      });
+    }
     node.querySelector(".add-btn").addEventListener("click", function (e) {
-      e.stopPropagation();              // don't open the modal when adding from the card
-      addToCart(p.id);
+      e.stopPropagation();
+      addToCart(unit.active.id);
       var btn = e.currentTarget;
       btn.textContent = "Added ✓"; btn.classList.add("added");
       setTimeout(function () { btn.textContent = "Add"; btn.classList.remove("added"); }, 1100);
     });
-    node.addEventListener("click", function () { openProductModal(p); });
+    node.addEventListener("click", function () { openProductModal(unit.active, unit); });
     return node;
   }
 
@@ -283,6 +397,13 @@
     $("#couponInput").value = ""; setCouponMsg("");
     renderCart(); bumpCount();
     toast("Cart cleared");
+  }
+  // Change a cart line to a different colorway (merges qty if that colorway is already present).
+  function swapColor(oldId, newId) {
+    if (oldId === newId || !cart[oldId]) return;
+    cart[newId] = (cart[newId] || 0) + cart[oldId];
+    delete cart[oldId];
+    saveCart(); renderCart(); bumpCount();
   }
   function cartEntries() {
     return Object.keys(cart).map(function (id) {
@@ -338,12 +459,18 @@
     t.entries.forEach(function (e) {
       var p = e.product;
       var line = el("div", { "class": "cart-line" });
+      var nameHtml = p._multi
+        ? esc(p._base) + ' <span class="cl-color">— ' + esc(p._color || "Original") + '</span>'
+        : esc(p.name);
       line.innerHTML =
         '<img src="images/' + p.img + '" alt="" loading="lazy">' +
         '<div class="cl-main">' +
           '<div class="cl-brand">' + esc(p.brand) + '</div>' +
-          '<div class="cl-name">' + esc(p.name) + '</div>' +
-          '<div class="cl-price">' + money(p.price) + ' each</div>' +
+          '<div class="cl-name">' + nameHtml + '</div>' +
+          '<div class="cl-price">' + money(p.price) + ' each' +
+            (p._multi ? ' · <button class="cl-edit" type="button" data-act="edit">Change colour</button>' : '') +
+          '</div>' +
+          (p._multi ? '<div class="cl-colors" hidden>' + swatchesHTML(GROUPS[p._gkey], p.id) + '</div>' : '') +
           '<div class="cl-controls">' +
             '<div class="qty">' +
               '<button type="button" aria-label="Decrease quantity" data-act="dec">−</button>' +
@@ -356,6 +483,13 @@
       line.querySelector('[data-act="dec"]').addEventListener("click", function () { setQty(p.id, e.qty - 1); bumpCount(); });
       line.querySelector('[data-act="inc"]').addEventListener("click", function () { setQty(p.id, e.qty + 1); bumpCount(); });
       line.querySelector('[data-act="rm"]').addEventListener("click", function () { setQty(p.id, 0); bumpCount(); });
+      if (p._multi) {
+        var colors = line.querySelector(".cl-colors");
+        line.querySelector('[data-act="edit"]').addEventListener("click", function () { colors.hidden = !colors.hidden; });
+        colors.querySelectorAll(".cw-swatch").forEach(function (sw) {
+          sw.addEventListener("click", function () { swapColor(p.id, sw.getAttribute("data-id")); });
+        });
+      }
       box.appendChild(line);
     });
 
@@ -400,8 +534,8 @@
   /* ============================================================
      DRAWER + UI WIRING
      ============================================================ */
-  var modalProduct = null;
-  function openProductModal(p) {
+  var modalProduct = null, modalUnit = null;
+  function fillModal(p) {
     modalProduct = p;
     $("#modalImg").src = "images/" + p.img;
     $("#modalImg").alt = p.brand + " " + p.name;
@@ -410,6 +544,24 @@
     $("#modalPrice").textContent = money(p.price);
     $("#modalDesc").textContent = p.desc || p.blurb || "";
     $("#modalDesc").scrollTop = 0;
+  }
+  function openProductModal(p, unit) {
+    modalUnit = (unit && unit.colorways.length > 1) ? unit : null;
+    fillModal(p);
+    var sw = $("#modalSwatches");
+    if (modalUnit) {
+      sw.innerHTML = swatchesHTML(modalUnit.colorways, p.id);
+      sw.hidden = false;
+      sw.querySelectorAll(".cw-swatch").forEach(function (s) {
+        s.addEventListener("click", function () {
+          var np = modalUnit.colorways.filter(function (q) { return q.id === s.getAttribute("data-id"); })[0];
+          if (!np) return;
+          fillModal(np);
+          modalUnit.active = np; activeColor[modalUnit.gkey] = np.id;   // keep grid in sync on next render
+          sw.querySelectorAll(".cw-swatch").forEach(function (x) { x.classList.toggle("active", x === s); });
+        });
+      });
+    } else { sw.hidden = true; sw.innerHTML = ""; }
     var add = $("#modalAdd"); add.textContent = "Add to cart"; add.classList.remove("added");
     $("#productModal").hidden = false;
     requestAnimationFrame(function () { $("#productModal").classList.add("open"); });
