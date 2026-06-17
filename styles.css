@@ -131,11 +131,13 @@ img { display: block; max-width: 100%; }
 
 /* ---------- Shop layout ---------- */
 .shop { padding: 36px 20px 64px; }
+/* Desktop: no toolbar band (count lives in the filter header instead) */
 .toolbar {
-  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+  display: none; align-items: center; justify-content: space-between; gap: 14px;
   flex-wrap: wrap; margin-bottom: 18px; min-height: 32px;
 }
 .result-count { color: var(--muted); font-size: .9rem; }
+.filters-count { color: var(--muted); font-size: .82rem; font-weight: 600; }
 .sort-select {
   width: 100%; font: inherit; padding: 10px 34px 10px 14px; border: 1px solid var(--line-strong);
   border-radius: 999px; background: #fff
@@ -391,6 +393,8 @@ img { display: block; max-width: 100%; }
 
 @media (max-width: 860px) {
   .shop-body { grid-template-columns: 1fr; }
+  .toolbar { display: flex; }          /* mobile: bring back the sticky toolbar (count + Filters) */
+  .filters-count { display: none; }    /* count shown in the toolbar on mobile */
   .filter-toggle { display: inline-block; }
   .filters {
     position: fixed; top: 0; right: 0; left: auto; width: 320px; max-width: 88vw;

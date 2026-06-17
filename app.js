@@ -263,6 +263,7 @@
 
     var label = list.length + (list.length === 1 ? " item" : " items");
     $("#resultCount").textContent = label;
+    $("#filtersCount").textContent = label;
     $("#filtersApply").textContent = "Show " + label;
     $("#shelfBack").hidden = !(isMobile && state.categories.size > 0);
 
